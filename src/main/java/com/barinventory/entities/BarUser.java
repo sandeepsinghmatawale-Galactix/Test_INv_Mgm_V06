@@ -1,8 +1,15 @@
 package com.barinventory.entities;
 
+import java.util.List;
+
+import com.barinventory.enums.GlobalRole;
+
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,4 +30,12 @@ public class BarUser {
 
     // ✅ bar mapping (keep simple for now)
     private Long barId;
+    
+    @Enumerated(EnumType.STRING)
+    private GlobalRole role;
+
+    @OneToMany(mappedBy = "user")
+    private List<UserBarAccess> barAccesses;
+
+    private Boolean active = true;
 }

@@ -2,8 +2,9 @@ package com.barinventory.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -14,26 +15,71 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private final UserDetailsService userDetailsService;
+    private final LoginSuccessHandler loginSuccessHandler;
 
-	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-		http.csrf(csrf -> csrf.disable()) // ok for now
+        http
 
-				.authorizeHttpRequests(
-						auth -> auth.requestMatchers("/login", "/css/**").permitAll().anyRequest().authenticated())
+            .csrf(csrf -> csrf.disable())
 
-				.formLogin(form -> form.loginPage("/login").loginProcessingUrl("/login") // form submits here
-						.defaultSuccessUrl("/sessions/create-page", true).failureUrl("/login?error=true").permitAll())
+            .authorizeHttpRequests(auth -> auth
 
-				.logout(logout -> logout.logoutUrl("/logout").logoutSuccessUrl("/login?logout=true"));
+                // PUBLIC
+                .requestMatchers(
+                        "/login",
+                        "/css/**",
+                        "/js/**",
+                        "/images/**"
+                ).permitAll()
 
-		return http.build();
-	}
+                // ADMIN
+                .requestMatchers("/admin/**")
+                .hasRole("ADMIN")
 
-	@Bean
-	public PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
-	}
+                // AUTHENTICATED USERS
+                .anyRequest()
+                .authenticated()
+            )
+
+            .formLogin(form -> form
+
+                .loginPage("/login")
+
+                .loginProcessingUrl("/login")
+
+                .successHandler(loginSuccessHandler)
+
+                .failureUrl("/login?error=true")
+
+                .permitAll()
+            )
+
+            .logout(logout -> logout
+
+                .logoutUrl("/logout")
+
+                .logoutSuccessUrl("/login?logout=true")
+
+                .invalidateHttpSession(true)
+
+                .deleteCookies("JSESSIONID")
+            );
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config
+    ) throws Exception {
+
+        return config.getAuthenticationManager();
+    }
 }
