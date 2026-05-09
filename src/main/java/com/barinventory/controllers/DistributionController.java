@@ -85,45 +85,7 @@ public class DistributionController {
     public String allocationPage(@PathVariable Long distributionId, Model model) {
 
         Long barId = SecurityUtils.getBarId();
-
-        List<Brand> brands = brandService.getBrandsByBar(barId);
-        List<Well> wells = wellService.getWellsByBar(barId);
-        if (wells.isEmpty()) wells = wellService.getAllWells();
-
-        Map<Long, Integer> stockMap = stockroomService.getSaleStockMap(distributionId);
-
-        List<DistributionRequest> requests = new ArrayList<>();
-        Map<String, Integer> indexMap = new HashMap<>();
-        int idx = 0;
-
-        for (Brand brand : brands) {
-            if (brand.getBrandSizes() == null || brand.getBrandSizes().isEmpty()) continue;
-            for (BrandSize brandSize : brand.getBrandSizes()) {
-                for (Well well : wells) {
-                    DistributionRequest req = new DistributionRequest();
-                    req.setBrandId(brand.getBrandId());
-                    req.setBrandSizeId(brandSize.getBrandSizeId());
-                    req.setWellId(well.getWellId());
-                    req.setDistributedQty(0);
-                    requests.add(req);
-                    indexMap.put(brandSize.getBrandSizeId() + "_" + well.getWellId(), idx++);
-                }
-            }
-        }
-
-        DistributionRequestWrapper wrapper = new DistributionRequestWrapper();
-        wrapper.setRequests(requests);
-
-        Long sessionId = distributionService.getSessionIdByDistribution(distributionId);
-        List<StockroomInventory> stocks = stockroomService.getStockroomBySession(sessionId);
-
-        model.addAttribute("stocks", stocks);
-        model.addAttribute("brands", brands);
-        model.addAttribute("wells", wells);
-        model.addAttribute("stockMap", stockMap);
-        model.addAttribute("indexMap", indexMap);
-        model.addAttribute("distributionId", distributionId);
-        model.addAttribute("wrapper", wrapper);
+        populateAllocationModel(barId, distributionId, null, model);
 
         return "distribution/distribution-allocation";
     }
@@ -155,54 +117,79 @@ public class DistributionController {
                                     distributionId
                             );
 
-            return "redirect:/well/select/" + sessionId;
+            return "redirect:/well/start/" + sessionId;
 
         } catch (RuntimeException ex) {
 
             ex.printStackTrace();
 
-            List<Brand> brands =
-                    brandService.getBrandsByBar(barId);
-
-            List<Well> wells =
-                    wellService.getWellsByBar(barId);
-
-            Map<Long, Integer> stockMap =
-                    stockroomService.getSaleStockMap(
-                            distributionId
-                    );
-
-            model.addAttribute(
-                    "brands",
-                    brands
-            );
-
-            model.addAttribute(
-                    "wells",
-                    wells
-            );
-
-            model.addAttribute(
-                    "stockMap",
-                    stockMap
-            );
-
-            model.addAttribute(
-                    "distributionId",
-                    distributionId
-            );
-
-            model.addAttribute(
-                    "error",
-                    ex.getMessage()
-            );
-
-            model.addAttribute(
-                    "wrapper",
-                    wrapper
-            );
+            populateAllocationModel(barId, distributionId, wrapper, model);
+            model.addAttribute("error", ex.getMessage());
 
             return "distribution/distribution-allocation";
         }
+    }
+
+    private void populateAllocationModel(
+            Long barId,
+            Long distributionId,
+            DistributionRequestWrapper existingWrapper,
+            Model model
+    ) {
+
+        List<Brand> brands = brandService.getBrandsByBar(barId);
+
+        List<Well> wells = wellService.getWellsByBar(barId);
+        if (wells == null || wells.isEmpty()) {
+            wells = wellService.getAllWells();
+        }
+
+        Map<Long, Integer> stockMap = stockroomService.getSaleStockMap(distributionId);
+
+        DistributionRequestWrapper wrapper = existingWrapper;
+        if (wrapper == null || wrapper.getRequests() == null || wrapper.getRequests().isEmpty()) {
+            List<DistributionRequest> requests = new ArrayList<>();
+            for (Brand brand : brands) {
+                if (brand.getBrandSizes() == null || brand.getBrandSizes().isEmpty()) {
+                    continue;
+                }
+                for (BrandSize brandSize : brand.getBrandSizes()) {
+                    for (Well well : wells) {
+                        DistributionRequest req = new DistributionRequest();
+                        req.setBrandId(brand.getBrandId());
+                        req.setBrandSizeId(brandSize.getBrandSizeId());
+                        req.setWellId(well.getWellId());
+                        req.setDistributedQty(0);
+                        requests.add(req);
+                    }
+                }
+            }
+            wrapper = new DistributionRequestWrapper();
+            wrapper.setRequests(requests);
+        }
+
+        Map<String, Integer> indexMap = new HashMap<>();
+        int idx = 0;
+        for (Brand brand : brands) {
+            if (brand.getBrandSizes() == null || brand.getBrandSizes().isEmpty()) {
+                continue;
+            }
+            for (BrandSize brandSize : brand.getBrandSizes()) {
+                for (Well well : wells) {
+                    indexMap.put(brandSize.getBrandSizeId() + "_" + well.getWellId(), idx++);
+                }
+            }
+        }
+
+        Long sessionId = distributionService.getSessionIdByDistribution(distributionId);
+        List<StockroomInventory> stocks = stockroomService.getStockroomBySession(sessionId);
+
+        model.addAttribute("stocks", stocks);
+        model.addAttribute("brands", brands);
+        model.addAttribute("wells", wells);
+        model.addAttribute("stockMap", stockMap);
+        model.addAttribute("indexMap", indexMap);
+        model.addAttribute("distributionId", distributionId);
+        model.addAttribute("wrapper", wrapper);
     }
 }

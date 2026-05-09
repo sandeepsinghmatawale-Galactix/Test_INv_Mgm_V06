@@ -61,6 +61,31 @@ public class WellInventoryController {
 	}
 
 	/*
+	 * ----------------------------------------- START WELL INVENTORY (AUTO)
+	 * -----------------------------------------
+	 */
+	@GetMapping("/start/{sessionId}")
+	public String startWellInventory(@PathVariable Long sessionId) {
+		Long barId = SecurityUtils.getBarId();
+
+		if (wellInventoryService.isSessionCompleted(barId, sessionId)) {
+			return "redirect:/well/select/" + sessionId;
+		}
+
+		Long nextWellId = wellInventoryService.getNextPendingWell(barId, sessionId);
+		if (nextWellId == null) {
+			return "redirect:/well/select/" + sessionId;
+		}
+
+		List<WellInventory> existing = wellInventoryService.getWellInventory(barId, sessionId, nextWellId);
+		if (existing.isEmpty()) {
+			wellInventoryService.initializeWellInventory(barId, sessionId, nextWellId);
+		}
+
+		return "redirect:/well/" + sessionId + "/" + nextWellId;
+	}
+
+	/*
 	 * ----------------------------------------- INITIALIZE WELL
 	 * -----------------------------------------
 	 */

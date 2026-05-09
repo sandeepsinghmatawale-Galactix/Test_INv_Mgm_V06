@@ -1,6 +1,7 @@
 package com.barinventory.entities;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.barinventory.enums.GlobalRole;
 
@@ -38,4 +39,13 @@ public class BarUser {
     private List<UserBarAccess> barAccesses;
 
     private Boolean active = true;
+
+    public List<UserBarAccess> getActiveBarAccesses() {
+        if (barAccesses == null) {
+            return List.of();
+        }
+        return barAccesses.stream()
+                .filter(a -> Boolean.TRUE.equals(a.getActive()))
+                .collect(Collectors.toList());
+    }
 }

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Select Bar</title>
+    <meta charset="UTF-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h4 class="mb-3">Select a Bar</h4>
+                    <p class="text-muted mb-4">Choose the location you want to work in.</p>
+
+                    <div th:if="${#lists.isEmpty(accesses)}" class="alert alert-warning">
+                        You don’t have access to any bars yet.
+                    </div>
+
+                    <form th:if="${!#lists.isEmpty(accesses)}" method="post" action="/select-bar">
+                        <div class="mb-3">
+                            <label class="form-label">Bar</label>
+                            <select class="form-select" name="barId" required>
+                                <option th:each="a : ${accesses}"
+                                        th:value="${a.bar.barId}"
+                                        th:text="${a.bar.barName + ' (' + a.barRole + ')'}">
+                                </option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-dark w-100" type="submit">Continue</button>
+                    </form>
+
+                    <div class="mt-3">
+                        <a class="text-decoration-none" href="/logout">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
+

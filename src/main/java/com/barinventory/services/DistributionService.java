@@ -85,6 +85,8 @@ public class DistributionService {
 		List<WellDistribution> batchList = prepareBatch(requests, distribution);
 
 		wellDistributionRepo.deleteByDistributionId(distributionId);
+		// Ensure deletes hit DB before inserts (prevents unique constraint conflicts)
+		wellDistributionRepo.flush();
 
 		wellDistributionRepo.saveAll(batchList);
 
@@ -156,7 +158,9 @@ public class DistributionService {
 	        Distribution distribution
 	) {
 
-	    List<WellDistribution> list = new ArrayList<>();
+	    // Deduplicate by (brandSizeId, wellId) to avoid unique constraint violations
+	    // (can happen due to repeated form rows / double-submit / client-side duplication)
+	    Map<String, Integer> qtyByKey = new HashMap<>();
 
 	    for (DistributionRequest r : requests) {
 
@@ -168,31 +172,32 @@ public class DistributionService {
 	            continue;
 	        }
 
-	        WellDistribution wd = new WellDistribution();
+	        String key = r.getBrandSizeId() + "_" + r.getWellId();
+	        qtyByKey.merge(key, r.getDistributedQty(), Integer::sum);
+	    }
 
+	    List<WellDistribution> list = new ArrayList<>(qtyByKey.size());
+
+	    for (Map.Entry<String, Integer> entry : qtyByKey.entrySet()) {
+	        String[] parts = entry.getKey().split("_", 2);
+	        Long brandSizeId = Long.parseLong(parts[0]);
+	        Long wellId = Long.parseLong(parts[1]);
+	        Integer qty = entry.getValue();
+
+	        WellDistribution wd = new WellDistribution();
 	        wd.setDistribution(distribution);
 
-	        // load brandSize once
-	        BrandSize brandSize =
-	                brandSizeRepo.getReferenceById(r.getBrandSizeId());
-
+	        BrandSize brandSize = brandSizeRepo.getReferenceById(brandSizeId);
 	        Brand brand = brandSize.getBrand();
-
 	        if (brand == null) {
-	            throw new RuntimeException(
-	                "Brand missing for brandSizeId: " + r.getBrandSizeId()
-	            );
+	            throw new RuntimeException("Brand missing for brandSizeId: " + brandSizeId);
 	        }
 
 	        wd.setBrandSize(brandSize);
 	        wd.setBrand(brand);
-	        wd.setWell(
-	                wellRepo.getReferenceById(r.getWellId())
-	        );
-
-	        wd.setDistributedQty(r.getDistributedQty());
+	        wd.setWell(wellRepo.getReferenceById(wellId));
+	        wd.setDistributedQty(qty);
 	        wd.setDistributedAt(LocalDateTime.now());
-
 	        list.add(wd);
 	    }
 
