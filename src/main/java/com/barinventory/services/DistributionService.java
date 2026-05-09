@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.barinventory.dtos.DistributionRequest;
 import com.barinventory.entities.Brand;
@@ -22,7 +23,6 @@ import com.barinventory.repos.StockroomInventoryRepository;
 import com.barinventory.repos.WellDistributionRepository;
 import com.barinventory.repos.WellRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -73,8 +73,10 @@ public class DistributionService {
 
 		validateInput(requests);
 
-		Distribution distribution = distributionRepo.findById(distributionId)
-				.orElseThrow(() -> new RuntimeException("Distribution not found"));
+		 
+		Distribution distribution = distributionRepo.findByIdForUpdate(distributionId)
+			    .orElseThrow(() -> new RuntimeException("Distribution not found"));
+
 
 		Long sessionId = distribution.getSession().getSessionId();
 
